@@ -1,16 +1,18 @@
-### main_window.py
 from PyQt6.QtGui import QIcon, QFont
-from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QPushButton, QTableWidget, QTableWidgetItem, QMessageBox)
+from PyQt6.QtWidgets import (
+    QMainWindow, QWidget, QVBoxLayout, QPushButton, QTableWidget, QTableWidgetItem, QMessageBox
+)
 from Material_form import MaterialForm
+from material_calculator_form import MaterialCalculatorForm
 from db import get_connection
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setMinimumSize(500,200)
+        self.setMinimumSize(500, 200)
         self.setWindowTitle("Склад материалов")
         self.setWindowIcon(QIcon("icon.png"))
-        self.setStyleSheet("background-color:white")
+        self.setStyleSheet("background-color:black")
         self.setFont(QFont("Bahnschrift Light SemiCondensed"))
 
         central_widget = QWidget()
@@ -18,21 +20,22 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout()
 
         self.table = QTableWidget()
-        self.table.setColumnCount(5)
-        self.table.setHorizontalHeaderLabels(["ID", "Название", "Ед.", "Остаток", "Тип"])
+        self.table.setColumnCount(6)
+        self.table.setHorizontalHeaderLabels(["ID", "Название", "Ед.", "Остаток", "Тип", "Цена"])
         self.table.cellDoubleClicked.connect(self.edit_material)
         layout.addWidget(self.table)
 
         btn_add = QPushButton("Добавить материал")
-        btn_add.setStyleSheet("background-color:blue")
         btn_add.clicked.connect(self.add_material)
         layout.addWidget(btn_add)
 
         btn_suppliers = QPushButton("Просмотр поставщиков материала")
-
-        btn_suppliers.setStyleSheet("background-color:blue")
         btn_suppliers.clicked.connect(self.view_material_suppliers)
         layout.addWidget(btn_suppliers)
+
+        btn_calculate = QPushButton("Рассчитать расход материала")
+        btn_calculate.clicked.connect(self.open_calculator)
+        layout.addWidget(btn_calculate)
 
         central_widget.setLayout(layout)
         self.load_materials()
@@ -41,7 +44,7 @@ class MainWindow(QMainWindow):
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT m.material_id, m.name, m.unit, m.stock_quantity, t.name
+            SELECT m.material_id, m.name, m.unit, m.stock_quantity, t.name, m.price_per_unit
             FROM materials m
             JOIN material_types t ON m.type_id = t.type_id
         """)
@@ -64,6 +67,7 @@ class MainWindow(QMainWindow):
         unit = self.table.item(row, 2).text()
         stock_quantity = float(self.table.item(row, 3).text())
         type_name = self.table.item(row, 4).text()
+        price = float(self.table.item(row, 5).text())
 
         conn = get_connection()
         cursor = conn.cursor()
@@ -71,7 +75,7 @@ class MainWindow(QMainWindow):
         type_id = cursor.fetchone()[0]
         conn.close()
 
-        material = (material_id, name, unit, stock_quantity, type_id)
+        material = (material_id, name, unit, stock_quantity, type_id, price)
         form = MaterialForm(material=material, parent=self)
         if form.exec():
             self.load_materials()
@@ -100,3 +104,7 @@ class MainWindow(QMainWindow):
 
         text = "\n".join([f"{name} ({info})" for name, info in suppliers])
         QMessageBox.information(self, "Поставщики материала", text)
+
+    def open_calculator(self):
+        form = MaterialCalculatorForm(self)
+        form.exec()
